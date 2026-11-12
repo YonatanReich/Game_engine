@@ -278,6 +278,9 @@ ServiceFabricBackup/
 # Microsoft Fakes
 FakesAssemblies/
 
+*.slnx
+*.vcxproj*
+
 # GhostDoc plugin setting file
 *.GhostDoc.xml
 
