@@ -78,9 +78,24 @@ int main()
 		glGetShaderInfoLog(fragmentShader, sizeof(infoLog), nullptr, infoLog);
 		std::cerr << "Fragment shader compilation failed:\n" << infoLog << std::endl;
 	}
+	//Create the shader program, bind both shaders to it and compile the entire thing
+	GLuint shaderProgram = glCreateProgram();
+	glAttachShader(shaderProgram, vertexShader);
+	glAttachShader(shaderProgram, fragmentShader);
+	glLinkProgram(shaderProgram);
 
-	GLuint shaderProgram = glCreateProgram(); 
+	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
 
+	if (!success) {
+		char infoLog[512];
+		glGetProgramInfoLog(shaderProgram, sizeof(infoLog), nullptr, infoLog);
+		std::cerr << " Fragment shader compilation failed:\n" << infoLog << std::endl;
+	}
+
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
+
+	
 	
     std::vector<float> vertices = {
 	0.0f, 0.5f, 0.0f,
@@ -88,7 +103,20 @@ int main()
 	0.5f, -0.5f, 0.0f
 };
 
+	GLuint vbo;
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	//Now, Vertex data is in GPU memeory, now we need to provide the interperation of said array buffer
+	//We use a VAO, to store the vertex attribute layout and how it maps to hsader inputs
+	GLuint vao;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
 
 	//Event loop to keep the window open until the user closes it
 	while (!glfwWindowShouldClose(window)) {
