@@ -4,11 +4,16 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 struct vec2 {
 	float x = 0.0f;
 	float y = 0.0f;
 };
+
+
 vec2 offset;
 void keyCallBack(GLFWwindow* window, int key, int scanCode, int action, int mods) {
 	if (action == GLFW_PRESS) {
@@ -31,10 +36,6 @@ void keyCallBack(GLFWwindow* window, int key, int scanCode, int action, int mods
 	}
 }
 		
-	
-
-
-
 int main()
 {
 
@@ -46,8 +47,11 @@ int main()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+	
+	const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 		
-	GLFWwindow* window = glfwCreateWindow(2000, 1500, "Game Engine", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "Game Engine", NULL, NULL);
 	//If the window fails to be created, print an error message and return -1
 	if (window == nullptr) {
 		std::cout << "Failed to create GLFW window" << std::endl;
@@ -57,8 +61,6 @@ int main()
 	glfwSetKeyCallback(window, keyCallBack);
 
 
-	//Set the window position to (1000, 150) and make the context current
-	glfwSetWindowPos(window, 1000, 150);
 	glfwMakeContextCurrent(window);
 
 	if (glewInit() != GLEW_OK) {
@@ -99,10 +101,9 @@ int main()
     #version 330 core
     out vec4 fragColor;
     
-    in vec3 vColor;
-    uniform vec4 wColor;    
+    in vec3 vColor;    
     void main(){
-	 fragColor = vec4(vColor, 1.0 ) * wColor;
+	 fragColor = vec4(vColor, 1.0 );
 	}
     )";
 
@@ -139,16 +140,16 @@ int main()
 
 	
 	
-    std::vector<float> vertices = {
-	//first vertex pos and color
-	0.5f, 0.5f, 0.0f, /*color*/ 1.0f,0.0f,0.0f,
-	//2nd
-	-0.5f, 0.5f, 0.0f, /*color*/ 0.0f,1.0f,0.0f,
-	//3rd
-	-0.5f, -0.5f, 0.0f, /*color*/ 0.0f,0.0f,1.0f,
-	//4th
-	0.5f,-0.5f, 0.0f, 1.0f, 1.0f, 0.0f
-};
+	std::vector<float> vertices = {
+		//first vertex pos and color
+		0.1f, 0.5f, 0.0f, /*color*/ 0.96, 0.80, 0.69,
+		//2nd
+		-0.1f, 0.5f, 0.0f, /*color*/0.96, 0.80, 0.69,
+		//3rd
+		-0.1f, -0.1f, 0.0f, /*color*/ 0.96, 0.80, 0.69f,
+		//4th
+		0.1f,-0.1f, 0.0f, 0.96, 0.80, 0.69
+	};
 
 	std::vector<unsigned int> indices = {
 		0,1,2,

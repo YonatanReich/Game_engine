@@ -14,6 +14,7 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCE_FILES})
 # Add GLFW library
 add_subdirectory(thirdparty/glfw-3.4 "${CMAKE_CURRENT_BINARY_DIR}/glfw_build")
 include_directories(thirdparty/glfw-3.4/include)
+include_directories(thirdparty/glm)
 
 # Add Glew library
 add_compile_definitions(GLEW_NO_GLU)
