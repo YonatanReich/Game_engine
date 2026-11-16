@@ -7,38 +7,61 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <algorithm>
 
 struct vec2 {
 	float x = 0.0f;
 	float y = 0.0f;
 };
+const float WORLD_H = 150.0f;
+const float GROUND_H = floorf(WORLD_H * 0.25);
 
-
+//Define an entity struct, that tells us its color (for now) its size and center
+struct entity {
+	glm::vec2 pos; //The center of the entity
+	glm::vec2 size;
+	glm::vec4 color;
+	float vy = 0.0f;
+};
 vec2 offset;
-void keyCallBack(GLFWwindow* window, int key, int scanCode, int action, int mods) {
-	if (action == GLFW_PRESS) {
-		switch (key) {
-		case GLFW_KEY_UP:
-			offset.y += 0.1f;
-			break;
-		case GLFW_KEY_DOWN:
-			offset.y -= 0.1f;
-			 break;
-		case GLFW_KEY_RIGHT:
-			offset.x += 0.1f;
-			break;
-		case GLFW_KEY_LEFT:
-			offset.x -= 0.1f;
-			break;
-		default:
-			break;
-		}
+
+
+
+void updatePlayer(GLFWwindow* window, entity& player, float dt, float worldW) {
+	const float SPEED = 50.0f;   // horizontal, units/sec
+	const float JUMP = 100.0f;   // initial upward speed, units/sec
+	const float GRAVITY = 200.0f;  // units/sec^2
+	float halfW = player.size.x / 2.0f;
+	float halfH = player.size.y / 2.0f;
+
+	// horizontal: opposite keys cancel, then clamp to the screen
+	float dir = 0.0f;
+	if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) dir += 1.0f;
+	if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) dir -= 1.0f;
+	player.pos.x += dir * SPEED * dt;
+	player.pos.x = std::clamp(player.pos.x, halfW, worldW - halfW);
+
+	// vertical: jump only from the ground, gravity every frame
+	bool onGround = (player.pos.y - halfH) <= GROUND_H + 0.01f;
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && onGround) {
+		player.vy = JUMP;
+	}
+	player.vy -= GRAVITY * dt;
+	player.pos.y += player.vy * dt;
+
+	// landing: put the feet exactly on the ground and stop falling
+	if (player.pos.y - halfH < GROUND_H) {
+		player.pos.y = GROUND_H + halfH;
+		player.vy = 0.0f;
 	}
 }
+
+
+
 		
 int main()
 {
-
+	
 	if (!glfwInit()) {
 		std::cout << "Failed to initialize GLFW" << std::endl;
 		return -1;
@@ -58,7 +81,6 @@ int main()
 		return -1;
 	}
 
-	glfwSetKeyCallback(window, keyCallBack);
 
 
 	glfwMakeContextCurrent(window);
@@ -72,12 +94,10 @@ int main()
 	std::string vertexShaderSource = R"(
     #version 330 core
     layout (location = 0) in vec3 position;
-    layout (location = 1) in vec3 color;
-    uniform vec2 uOffset;
-    out vec3 vColor;
+    uniform mat4 uModel;
+    uniform mat4 uProj;
     void main(){
-     vColor = color;
-     gl_Position = vec4(position.x + uOffset.x,position.y + uOffset.y,position.z, 1.0);
+     gl_Position = uProj * uModel * vec4(position, 1.0);
     }
     )";
 	//Create a vertex shader object and compile the shader source code
@@ -100,10 +120,9 @@ int main()
 	std::string fragmentShaderSource = R"(
     #version 330 core
     out vec4 fragColor;
-    
-    in vec3 vColor;    
+    uniform vec4 wColor; 
     void main(){
-	 fragColor = vec4(vColor, 1.0 );
+	 fragColor = wColor;
 	}
     )";
 
@@ -142,13 +161,13 @@ int main()
 	
 	std::vector<float> vertices = {
 		//first vertex pos and color
-		0.1f, 0.5f, 0.0f, /*color*/ 0.96, 0.80, 0.69,
+		0.5f, 0.5f, 0.0f, /*color*/
 		//2nd
-		-0.1f, 0.5f, 0.0f, /*color*/0.96, 0.80, 0.69,
+		-0.5f, 0.5f, 0.0f, /*color*/
 		//3rd
-		-0.1f, -0.1f, 0.0f, /*color*/ 0.96, 0.80, 0.69f,
+		-0.5f, -0.5f, 0.0f, /*color*/
 		//4th
-		0.1f,-0.1f, 0.0f, 0.96, 0.80, 0.69
+		0.5f,-0.5f, 0.0f,
 	};
 
 	std::vector<unsigned int> indices = {
@@ -178,12 +197,8 @@ int main()
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, false, 6 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
-
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 
@@ -200,7 +215,6 @@ int main()
     #version 330 core
     out vec4 fragColor;
     uniform vec2 uRes;
-    const float PX = 10.0; // size of one "art pixel" in screen pixels
     float box(vec2 c, vec2 o, vec2 s){
      vec2 d = c - o;
      return step(0.0, d.x) * step(d.x, s.x - 1.0) * step(0.0, d.y) * step(d.y, s.y - 1.0);
@@ -209,6 +223,7 @@ int main()
      return max(box(c, o, vec2(12,2)), max(box(c, o + vec2(2,2), vec2(8,2)), box(c, o + vec2(4,4), vec2(4,2))));
     }
     void main(){
+     float PX = uRes.y / 150.0;
      vec2 c = floor(gl_FragCoord.xy / PX);
      vec2 grid = floor(uRes / PX);
      vec3 col = vec3(0.35, 0.65, 0.95); // sky
@@ -241,23 +256,43 @@ int main()
 	GLint bgResLoc = glGetUniformLocation(bgProgram, "uRes");
 	GLuint bgVao; // core profile needs a VAO bound even with no attributes
 	glGenVertexArrays(1, &bgVao);
-
+	//Assign IDs to all uniforms
 	GLuint wColorLoc = glGetUniformLocation(shaderProgram, "wColor");
-	GLuint wOffsetLoc = glGetUniformLocation(shaderProgram, "uOffset");
+	GLuint uModelLoc = glGetUniformLocation(shaderProgram, "uModel");
+	GLuint uProjLoc = glGetUniformLocation(shaderProgram, "uProj");
 
+	
+
+	entity player;
+	player.size = { 12.0f, 10.f };
+	player.pos = { 25.0f, GROUND_H };
+	player.color = { 0.85f, 0.65f, 0.47f, 1.0f };
+	double lastTime = glfwGetTime();
 	//Event loop to keep the window open until the user closes it
 	while (!glfwWindowShouldClose(window)) {
 		
 		int fbW, fbH;
 		glfwGetFramebufferSize(window, &fbW, &fbH);
+		float worldW = WORLD_H * (float)fbW / (float)fbH;
+		double now = glfwGetTime();
+		float time_between_frames = (float)(now - lastTime);
+		lastTime = now;
+		updatePlayer(window, player, time_between_frames, worldW);
 		glUseProgram(bgProgram);
 		glUniform2f(bgResLoc, (float)fbW, (float)fbH);
 		glBindVertexArray(bgVao);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
-		//Activate our shaders
+		
+		glm::mat4 proj = glm::ortho(0.0f, worldW, 0.0f, WORLD_H, -1.0f, 1.0f);
+
+		glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(player.pos, 0.0f))
+			* glm::scale(glm::mat4(1.0f), glm::vec3(player.size, 1.0f));
+
 		glUseProgram(shaderProgram);
-		glUniform2f(wOffsetLoc, offset.x, offset.y);
+		glUniformMatrix4fv(uProjLoc, 1, GL_FALSE, glm::value_ptr(proj));
+		glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, glm::value_ptr(model));
+		glUniform4fv(wColorLoc, 1, glm::value_ptr(player.color));
 		glBindVertexArray(vao);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
